@@ -187,16 +187,42 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, query }) => {
                 }}>
                   最高: {(result.max_score * 100).toFixed(1)}%
                 </span>
-                <span style={{
-                  backgroundColor: '#f3e5f5',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  color: '#4a148c',
-                  fontWeight: 'bold'
-                }}>
-                  平均: {(result.avg_score * 100).toFixed(1)}%
-                </span>
+                {result.top3_avg && (
+                  <span style={{
+                    backgroundColor: '#f3e5f5',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    color: '#4a148c',
+                    fontWeight: 'bold'
+                  }}>
+                    Top3: {(result.top3_avg * 100).toFixed(1)}%
+                  </span>
+                )}
+                {result.page_bonus && result.page_bonus !== 1.0 && (
+                  <span style={{
+                    backgroundColor: '#e8f5e8',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    color: '#2e7d32',
+                    fontWeight: 'bold'
+                  }}>
+                    分散: ×{result.page_bonus.toFixed(2)}
+                  </span>
+                )}
+                {result.consistency_bonus && result.consistency_bonus !== 1.0 && (
+                  <span style={{
+                    backgroundColor: '#fff8e1',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    color: '#f57f17',
+                    fontWeight: 'bold'
+                  }}>
+                    一貫性: ×{result.consistency_bonus.toFixed(2)}
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <span style={{

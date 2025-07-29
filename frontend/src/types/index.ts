@@ -14,6 +14,12 @@ export interface FileSearchResult {
   score: number;
   max_score: number;
   avg_score: number;
+  median_score?: number;
+  top3_avg?: number;
+  relevance_score?: number;
+  page_bonus?: number;
+  density_adjustment?: number;
+  consistency_bonus?: number;
   chunk_count: number;
   best_chunk: string;
   pages: number[];

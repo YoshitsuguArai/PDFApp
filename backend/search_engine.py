@@ -159,13 +159,41 @@ class HybridSearchEngine:
         
         return search_results
     
-    def hybrid_search(self, query: str, top_k: int = 10, semantic_weight: float = 0.7) -> List[Dict[str, any]]:
-        """ハイブリッド検索（セマンティック + キーワード）"""
-        # セマンティック検索
-        semantic_results = self.semantic_search(query, top_k * 2)
+    def _calculate_adaptive_weights(self, query: str) -> tuple:
+        """クエリの特性に基づいて適応的な重みを計算"""
+        # クエリの長さ
+        query_length = len(query.split())
         
-        # キーワード検索
-        keyword_results = self.keyword_search(query, top_k * 2)
+        # 数値や特定のキーワードが含まれているかチェック
+        has_numbers = any(char.isdigit() for char in query)
+        has_quotes = '"' in query or "'" in query
+        
+        # 短いクエリや特定のキーワードはキーワード検索を重視
+        if query_length <= 2 or has_numbers or has_quotes:
+            semantic_weight = 0.4
+        elif query_length <= 4:
+            semantic_weight = 0.6
+        else:
+            # 長いクエリはセマンティック検索を重視
+            semantic_weight = 0.75
+        
+        return semantic_weight, 1 - semantic_weight
+
+    def hybrid_search(self, query: str, top_k: int = 10, semantic_weight: float = None) -> List[Dict[str, any]]:
+        """改善されたハイブリッド検索"""
+        # 適応的な重み計算
+        if semantic_weight is None:
+            semantic_weight, keyword_weight = self._calculate_adaptive_weights(query)
+        else:
+            keyword_weight = 1 - semantic_weight
+        
+        # セマンティック検索とキーワード検索を実行
+        semantic_results = self.semantic_search(query, top_k * 3)
+        keyword_results = self.keyword_search(query, top_k * 3)
+        
+        # スコアを正規化
+        semantic_results = self._normalize_scores(semantic_results, 'semantic')
+        keyword_results = self._normalize_scores(keyword_results, 'keyword')
         
         # 結果をマージしてスコアを統合
         combined_results = {}
@@ -175,8 +203,10 @@ class HybridSearchEngine:
             doc_key = f"{result['source']}_{result['page']}_{result['content'][:50]}"
             combined_results[doc_key] = {
                 **result,
-                'semantic_score': result['score'],
+                'semantic_score': result['normalized_score'],
                 'keyword_score': 0.0,
+                'original_semantic_score': result['score'],
+                'original_keyword_score': 0.0,
                 'search_type': 'hybrid'
             }
         
@@ -184,24 +214,33 @@ class HybridSearchEngine:
         for result in keyword_results:
             doc_key = f"{result['source']}_{result['page']}_{result['content'][:50]}"
             if doc_key in combined_results:
-                combined_results[doc_key]['keyword_score'] = result['score']
+                combined_results[doc_key]['keyword_score'] = result['normalized_score']
+                combined_results[doc_key]['original_keyword_score'] = result['score']
             else:
                 combined_results[doc_key] = {
                     **result,
                     'semantic_score': 0.0,
-                    'keyword_score': result['score'],
+                    'keyword_score': result['normalized_score'],
+                    'original_semantic_score': 0.0,
+                    'original_keyword_score': result['score'],
                     'search_type': 'hybrid'
                 }
         
         # 統合スコアを計算
         for result in combined_results.values():
-            # スコアを正規化
             semantic_score = result['semantic_score']
             keyword_score = result['keyword_score']
             
+            # 両方のスコアがある場合はボーナス
+            both_present_bonus = 1.1 if semantic_score > 0 and keyword_score > 0 else 1.0
+            
             # ハイブリッドスコア計算
-            result['score'] = (semantic_weight * semantic_score + 
-                             (1 - semantic_weight) * keyword_score)
+            hybrid_score = (semantic_weight * semantic_score + 
+                           keyword_weight * keyword_score)
+            
+            result['score'] = hybrid_score * both_present_bonus
+            result['semantic_weight'] = semantic_weight
+            result['keyword_weight'] = keyword_weight
         
         # スコアでソートして上位top_k件を返す
         sorted_results = sorted(
@@ -212,8 +251,54 @@ class HybridSearchEngine:
         
         return sorted_results[:top_k]
     
+    def _normalize_scores(self, results: List[Dict[str, any]], score_type: str) -> List[Dict[str, any]]:
+        """スコアを0-1の範囲に正規化"""
+        if not results:
+            return results
+        
+        scores = [r['score'] for r in results]
+        min_score = min(scores)
+        max_score = max(scores)
+        
+        # 最大値と最小値が同じ場合の処理
+        if max_score == min_score:
+            for result in results:
+                result['normalized_score'] = 1.0 if max_score > 0 else 0.0
+        else:
+            for result in results:
+                result['normalized_score'] = (result['score'] - min_score) / (max_score - min_score)
+        
+        return results
+    
+    def _calculate_page_dispersion_bonus(self, pages: List[int]) -> float:
+        """ページ分散度に基づくボーナススコア"""
+        if len(pages) <= 1:
+            return 1.0
+        
+        # ページ数が多いほど、かつ分散しているほど高いボーナス
+        page_count_bonus = min(1.2, 1.0 + (len(pages) - 1) * 0.05)
+        
+        # ページの分散度を計算
+        page_range = max(pages) - min(pages) + 1
+        dispersion = len(pages) / page_range if page_range > 0 else 1.0
+        dispersion_bonus = 1.0 + (dispersion - 1.0) * 0.1
+        
+        return page_count_bonus * dispersion_bonus
+    
+    def _calculate_chunk_density_score(self, chunk_count: int, total_pages: int) -> float:
+        """チャンク密度に基づくスコア調整"""
+        if total_pages == 0:
+            return 1.0
+        
+        density = chunk_count / total_pages
+        # 適度な密度（1-3チャンク/ページ）を最適とする
+        if density <= 3.0:
+            return 1.0 + density * 0.1  # 密度が高いほど少しボーナス
+        else:
+            return 1.0 + 0.3 - (density - 3.0) * 0.05  # 過度に高い密度はペナルティ
+    
     def _aggregate_results_by_file(self, results: List[Dict[str, any]]) -> List[Dict[str, any]]:
-        """チャンクレベルの結果をファイル単位で集計"""
+        """改善されたファイル単位での結果集計"""
         file_results = {}
         
         for result in results:
@@ -222,18 +307,20 @@ class HybridSearchEngine:
                 file_results[source] = {
                     'source': source,
                     'max_score': result['score'],
-                    'avg_score': result['score'],
+                    'scores': [result['score']],
                     'chunk_count': 1,
                     'total_score': result['score'],
                     'best_chunk': result['content'],
                     'pages': [result['page']],
-                    'search_type': result.get('search_type', 'unknown')
+                    'search_type': result.get('search_type', 'unknown'),
+                    'chunks': [result]
                 }
             else:
                 file_info = file_results[source]
                 file_info['chunk_count'] += 1
+                file_info['scores'].append(result['score'])
                 file_info['total_score'] += result['score']
-                file_info['avg_score'] = file_info['total_score'] / file_info['chunk_count']
+                file_info['chunks'].append(result)
                 
                 # 最高スコアのチャンクを保持
                 if result['score'] > file_info['max_score']:
@@ -244,11 +331,54 @@ class HybridSearchEngine:
                 if result['page'] not in file_info['pages']:
                     file_info['pages'].append(result['page'])
         
-        # 最終スコアを計算（最高スコア70% + 平均スコア30%）
+        # 改善されたスコア計算
         for file_info in file_results.values():
-            file_info['score'] = (file_info['max_score'] * 0.7 + 
-                                file_info['avg_score'] * 0.3)
+            scores = file_info['scores']
+            chunk_count = file_info['chunk_count']
+            pages = file_info['pages']
+            
+            # 基本統計値
+            max_score = max(scores)
+            avg_score = sum(scores) / len(scores)
+            median_score = sorted(scores)[len(scores) // 2]
+            
+            # トップ3チャンクの平均（重要な部分を重視）
+            top_scores = sorted(scores, reverse=True)[:min(3, len(scores))]
+            top3_avg = sum(top_scores) / len(top_scores)
+            
+            # 各要素のスコア
+            relevance_score = (max_score * 0.4 + top3_avg * 0.4 + median_score * 0.2)
+            
+            # ページ分散ボーナス
+            page_bonus = self._calculate_page_dispersion_bonus(pages)
+            
+            # チャンク密度調整
+            density_adjustment = self._calculate_chunk_density_score(chunk_count, len(pages))
+            
+            # 一貫性スコア（スコアの標準偏差の逆数）
+            if len(scores) > 1:
+                score_std = np.std(scores)
+                consistency_bonus = 1.0 + (1.0 / (1.0 + score_std)) * 0.1
+            else:
+                consistency_bonus = 1.0
+            
+            # 最終スコア計算
+            file_info['relevance_score'] = relevance_score
+            file_info['page_bonus'] = page_bonus
+            file_info['density_adjustment'] = density_adjustment
+            file_info['consistency_bonus'] = consistency_bonus
+            file_info['avg_score'] = avg_score
+            file_info['median_score'] = median_score
+            file_info['top3_avg'] = top3_avg
+            
+            # 統合スコア
+            file_info['score'] = (relevance_score * page_bonus * 
+                                density_adjustment * consistency_bonus)
+            
             file_info['pages'].sort()
+            # chunksリストを削除（メモリ節約）
+            del file_info['chunks']
+            del file_info['scores']
         
         # スコアでソート
         return sorted(file_results.values(), key=lambda x: x['score'], reverse=True)
