@@ -37,6 +37,16 @@ class SearchResult(BaseModel):
     page: Optional[int] = None
     search_type: Optional[str] = None
 
+class FileSearchResult(BaseModel):
+    source: str
+    score: float
+    max_score: float
+    avg_score: float
+    chunk_count: int
+    best_chunk: str
+    pages: List[int]
+    search_type: str
+
 @app.get("/")
 async def root():
     return {"message": "PDF Search API"}
@@ -91,6 +101,21 @@ async def search_documents(query: SearchQuery):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"検索エラー: {str(e)}")
+
+@app.post("/search/files", response_model=List[FileSearchResult])
+async def search_files(query: SearchQuery):
+    try:
+        if query.search_type == "semantic":
+            results = search_engine.semantic_search_by_file(query.query, query.top_k)
+        elif query.search_type == "keyword":
+            results = search_engine.keyword_search_by_file(query.query, query.top_k)
+        else:  # hybrid
+            results = search_engine.hybrid_search_by_file(query.query, query.top_k)
+        
+        return [FileSearchResult(**result) for result in results]
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ファイル検索エラー: {str(e)}")
 
 @app.get("/documents/count")
 async def get_document_count():

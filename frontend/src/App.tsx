@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import FileUpload from './components/FileUpload';
 import SearchForm from './components/SearchForm';
 import SearchResults from './components/SearchResults';
-import { SearchQuery, SearchResult, UploadResponse } from './types';
-import { searchDocuments, getDocumentCount, clearDocuments } from './services/api';
+import { SearchQuery, FileSearchResult, UploadResponse } from './types';
+import { searchFiles, getDocumentCount, clearDocuments } from './services/api';
 
 const App: React.FC = () => {
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<FileSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [documentCount, setDocumentCount] = useState(0);
   const [lastQuery, setLastQuery] = useState('');
@@ -49,7 +49,7 @@ const App: React.FC = () => {
     setLastQuery(query.query);
 
     try {
-      const results = await searchDocuments(query);
+      const results = await searchFiles(query);
       setSearchResults(results);
     } catch (error: any) {
       setError(`検索エラー: ${error.response?.data?.detail || error.message}`);

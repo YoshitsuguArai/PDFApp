@@ -1,8 +1,8 @@
 import React from 'react';
-import { SearchResult } from '../types';
+import { FileSearchResult } from '../types';
 
 interface SearchResultsProps {
-  results: SearchResult[];
+  results: FileSearchResult[];
   query: string;
 }
 
@@ -38,6 +38,38 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, query }) => {
         </mark>
       ) : part
     );
+  };
+
+  const formatPageList = (pages: number[]) => {
+    if (pages.length === 0) return '';
+    if (pages.length === 1) return `${pages[0]}`;
+    
+    // ページ番号を範囲表示に変換
+    const ranges: string[] = [];
+    let start = pages[0];
+    let end = start;
+    
+    for (let i = 1; i < pages.length; i++) {
+      if (pages[i] === end + 1) {
+        end = pages[i];
+      } else {
+        if (start === end) {
+          ranges.push(`${start}`);
+        } else {
+          ranges.push(`${start}-${end}`);
+        }
+        start = pages[i];
+        end = start;
+      }
+    }
+    
+    if (start === end) {
+      ranges.push(`${start}`);
+    } else {
+      ranges.push(`${start}-${end}`);
+    }
+    
+    return ranges.join(', ');
   };
 
   const getSearchTypeColor = (searchType?: string) => {
@@ -125,52 +157,46 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, query }) => {
                 >
                   📄 {result.source}
                 </a>
-                {result.page_range ? (
-                  <span style={{
-                    backgroundColor: '#d1ecf1',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    color: '#0c5460',
-                    fontWeight: 'bold'
-                  }}>
-                    📖 ページ {result.page_range}
-                  </span>
-                ) : result.page && (
-                  <span style={{
-                    backgroundColor: '#e9ecef',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    color: '#495057'
-                  }}>
-                    ページ {result.page}
-                  </span>
-                )}
-                {result.total_matches && (
-                  <span style={{
-                    backgroundColor: '#fff3cd',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    color: '#856404',
-                    fontWeight: 'bold'
-                  }}>
-                    🎯 {result.total_matches}件マッチ
-                  </span>
-                )}
-                {result.matching_pages_count && result.matching_pages_count > 1 && (
-                  <span style={{
-                    backgroundColor: '#d4edda',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    color: '#155724',
-                    fontWeight: 'bold'
-                  }}>
-                    📑 {result.matching_pages_count}ページに分散
-                  </span>
-                )}
+                <span style={{
+                  backgroundColor: '#d1ecf1',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#0c5460',
+                  fontWeight: 'bold'
+                }}>
+                  📖 ページ {formatPageList(result.pages)}
+                </span>
+                <span style={{
+                  backgroundColor: '#fff3cd',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#856404',
+                  fontWeight: 'bold'
+                }}>
+                  🎯 {result.chunk_count}チャンク
+                </span>
+                <span style={{
+                  backgroundColor: '#e1f5fe',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#01579b',
+                  fontWeight: 'bold'
+                }}>
+                  最高: {(result.max_score * 100).toFixed(1)}%
+                </span>
+                <span style={{
+                  backgroundColor: '#f3e5f5',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#4a148c',
+                  fontWeight: 'bold'
+                }}>
+                  平均: {(result.avg_score * 100).toFixed(1)}%
+                </span>
               </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <span style={{
@@ -205,7 +231,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, query }) => {
               borderRadius: '6px',
               border: '1px solid #f0f0f0'
             }}>
-              {highlightText(result.content, query)}
+              {highlightText(result.best_chunk, query)}
             </div>
           </div>
         ))}

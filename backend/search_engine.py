@@ -212,6 +212,62 @@ class HybridSearchEngine:
         
         return sorted_results[:top_k]
     
+    def _aggregate_results_by_file(self, results: List[Dict[str, any]]) -> List[Dict[str, any]]:
+        """チャンクレベルの結果をファイル単位で集計"""
+        file_results = {}
+        
+        for result in results:
+            source = result['source']
+            if source not in file_results:
+                file_results[source] = {
+                    'source': source,
+                    'max_score': result['score'],
+                    'avg_score': result['score'],
+                    'chunk_count': 1,
+                    'total_score': result['score'],
+                    'best_chunk': result['content'],
+                    'pages': [result['page']],
+                    'search_type': result.get('search_type', 'unknown')
+                }
+            else:
+                file_info = file_results[source]
+                file_info['chunk_count'] += 1
+                file_info['total_score'] += result['score']
+                file_info['avg_score'] = file_info['total_score'] / file_info['chunk_count']
+                
+                # 最高スコアのチャンクを保持
+                if result['score'] > file_info['max_score']:
+                    file_info['max_score'] = result['score']
+                    file_info['best_chunk'] = result['content']
+                
+                # ページ番号を追加（重複を避ける）
+                if result['page'] not in file_info['pages']:
+                    file_info['pages'].append(result['page'])
+        
+        # 最終スコアを計算（最高スコア70% + 平均スコア30%）
+        for file_info in file_results.values():
+            file_info['score'] = (file_info['max_score'] * 0.7 + 
+                                file_info['avg_score'] * 0.3)
+            file_info['pages'].sort()
+        
+        # スコアでソート
+        return sorted(file_results.values(), key=lambda x: x['score'], reverse=True)
+    
+    def semantic_search_by_file(self, query: str, top_k: int = 10) -> List[Dict[str, any]]:
+        """ファイル単位でのセマンティック検索"""
+        chunk_results = self.semantic_search(query, top_k * 10)
+        return self._aggregate_results_by_file(chunk_results)[:top_k]
+    
+    def keyword_search_by_file(self, query: str, top_k: int = 10) -> List[Dict[str, any]]:
+        """ファイル単位でのキーワード検索"""
+        chunk_results = self.keyword_search(query, top_k * 10)
+        return self._aggregate_results_by_file(chunk_results)[:top_k]
+    
+    def hybrid_search_by_file(self, query: str, top_k: int = 10, semantic_weight: float = 0.7) -> List[Dict[str, any]]:
+        """ファイル単位でのハイブリッド検索"""
+        chunk_results = self.hybrid_search(query, top_k * 10, semantic_weight)
+        return self._aggregate_results_by_file(chunk_results)[:top_k]
+    
     def get_document_count(self) -> int:
         """保存されているドキュメント数を取得"""
         return len(self.documents)

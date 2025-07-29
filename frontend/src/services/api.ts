@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SearchQuery, SearchResult, UploadResponse } from '../types';
+import { SearchQuery, SearchResult, FileSearchResult, UploadResponse } from '../types';
 
 const API_BASE_URL = 'http://localhost:9000';
 
@@ -41,6 +41,19 @@ export const searchDocuments = async (query: SearchQuery): Promise<SearchResult[
     return response.data;
   } catch (error: any) {
     console.error('Search error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const searchFiles = async (query: SearchQuery): Promise<FileSearchResult[]> => {
+  console.log('File search request:', query);
+  
+  try {
+    const response = await api.post('/search/files', query);
+    console.log('File search response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('File search error:', error.response?.data || error.message);
     throw error;
   }
 };
