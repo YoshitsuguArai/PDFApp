@@ -121,6 +121,75 @@ async def search_files(query: SearchQuery):
 async def get_document_count():
     return {"count": search_engine.get_document_count()}
 
+@app.get("/debug/sample-chunks/{filename}")
+async def get_sample_chunks(filename: str, limit: int = 5):
+    """デバッグ用：指定ファイルのサンプルチャンクを表示"""
+    try:
+        safe_filename = os.path.basename(filename)
+        chunks = search_engine.get_documents_by_source(safe_filename)
+        
+        sample_chunks = chunks[:limit]
+        return {
+            "filename": safe_filename,
+            "total_chunks": len(chunks),
+            "sample_chunks": [
+                {
+                    "id": chunk["id"],
+                    "page": chunk["page"],
+                    "content_preview": chunk["content"][:200] + "..." if len(chunk["content"]) > 200 else chunk["content"],
+                    "content_length": len(chunk["content"])
+                }
+                for chunk in sample_chunks
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"チャンク取得エラー: {str(e)}")
+
+@app.post("/debug/test-search")
+async def test_search(query: dict):
+    """デバッグ用：検索の詳細情報を返す"""
+    try:
+        search_query = query.get("query", "")
+        
+        # 各検索手法を個別にテスト
+        semantic_results = search_engine.semantic_search(search_query, 5)
+        keyword_results = search_engine.keyword_search(search_query, 5)
+        hybrid_results = search_engine.hybrid_search(search_query, 5)
+        
+        return {
+            "query": search_query,
+            "total_documents": search_engine.get_document_count(),
+            "semantic_results": [
+                {
+                    "score": r["score"],
+                    "source": r["source"],
+                    "page": r["page"],
+                    "content_preview": r["content"][:100] + "..."
+                }
+                for r in semantic_results
+            ],
+            "keyword_results": [
+                {
+                    "score": r["score"], 
+                    "source": r["source"],
+                    "page": r["page"],
+                    "content_preview": r["content"][:100] + "..."
+                }
+                for r in keyword_results
+            ],
+            "hybrid_results": [
+                {
+                    "score": r["score"],
+                    "source": r["source"], 
+                    "page": r["page"],
+                    "content_preview": r["content"][:100] + "..."
+                }
+                for r in hybrid_results
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"テスト検索エラー: {str(e)}")
+
 @app.get("/documents")
 async def get_documents():
     """アップロードされたPDFファイル一覧を取得"""

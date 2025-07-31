@@ -6,6 +6,8 @@ import numpy as np
 import json
 import os
 import pickle
+import re
+import unicodedata
 
 class HybridSearchEngine:
     def __init__(self, persist_directory: str = "chroma_db"):
@@ -17,9 +19,12 @@ class HybridSearchEngine:
             metadata={"hnsw:space": "cosine"}
         )
         self.tfidf_vectorizer = TfidfVectorizer(
-            max_features=5000,
-            stop_words='english',
-            ngram_range=(1, 2)
+            max_features=10000,
+            stop_words='english', 
+            ngram_range=(1, 3),
+            min_df=1,
+            max_df=0.95,
+            sublinear_tf=True
         )
         self.documents = []
         self.tfidf_matrix = None
@@ -28,6 +33,22 @@ class HybridSearchEngine:
         
         # 永続化データを読み込み
         self._load_persistent_data()
+    
+    def _preprocess_text(self, text: str) -> str:
+        """テキストの前処理（日本語対応）"""
+        # Unicode正規化
+        text = unicodedata.normalize('NFKC', text)
+        
+        # 余分な空白を削除
+        text = re.sub(r'\s+', ' ', text)
+        
+        # 改行をスペースに変換
+        text = text.replace('\n', ' ').replace('\r', ' ')
+        
+        # 先頭末尾の空白を削除
+        text = text.strip()
+        
+        return text
     
     def _load_persistent_data(self):
         """永続化されたデータを読み込み"""
@@ -75,28 +96,41 @@ class HybridSearchEngine:
     
     def add_documents(self, documents: List[Dict[str, any]]):
         """ドキュメントをベクトルデータベースに追加"""
-        texts = [doc['content'] for doc in documents]
+        # テキストの前処理
+        texts = [self._preprocess_text(doc['content']) for doc in documents]
+        
+        # 空のテキストを除外
+        valid_documents = []
+        valid_texts = []
+        for i, text in enumerate(texts):
+            if text.strip():
+                valid_documents.append(documents[i])
+                valid_texts.append(text)
+        
+        if not valid_texts:
+            print("Warning: No valid texts to add")
+            return
         
         # OpenAI embeddingsを取得
-        embeddings = self.embedding_service.get_batch_embeddings(texts)
+        embeddings = self.embedding_service.get_batch_embeddings(valid_texts)
         
         # ChromaDBに追加
-        ids = [doc['id'] for doc in documents]
+        ids = [doc['id'] for doc in valid_documents]
         metadatas = [{
             'source': doc['source'],
             'page': doc['page'],
             'chunk_index': doc['chunk_index']
-        } for doc in documents]
+        } for doc in valid_documents]
         
         self.collection.add(
             ids=ids,
             embeddings=embeddings,
-            documents=texts,
+            documents=valid_texts,
             metadatas=metadatas
         )
         
         # TF-IDF用にドキュメントを保存
-        self.documents.extend(documents)
+        self.documents.extend(valid_documents)
         self._update_tfidf_matrix()
         
         # 永続化データを保存
@@ -105,8 +139,11 @@ class HybridSearchEngine:
     def _update_tfidf_matrix(self):
         """TF-IDF行列を更新"""
         if self.documents:
-            texts = [doc['content'] for doc in self.documents]
-            self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(texts)
+            texts = [self._preprocess_text(doc['content']) for doc in self.documents]
+            # 空のテキストを除外
+            texts = [text for text in texts if text.strip()]
+            if texts:
+                self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(texts)
     
     def semantic_search(self, query: str, top_k: int = 10) -> List[Dict[str, any]]:
         """セマンティック検索（ベクトル検索）"""
@@ -139,7 +176,9 @@ class HybridSearchEngine:
         if not self.documents or self.tfidf_matrix is None:
             return []
         
-        query_vector = self.tfidf_vectorizer.transform([query])
+        # クエリも前処理
+        processed_query = self._preprocess_text(query)
+        query_vector = self.tfidf_vectorizer.transform([processed_query])
         scores = (self.tfidf_matrix * query_vector.T).toarray().flatten()
         
         # スコアでソート

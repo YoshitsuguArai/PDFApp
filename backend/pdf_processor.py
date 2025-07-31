@@ -59,7 +59,7 @@ class PDFProcessor:
                 'pages': pages_text
             }
     
-    def chunk_text(self, text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
+    def chunk_text(self, text: str, chunk_size: int = 1200, overlap: int = 300) -> List[str]:
         """テキストをチャンクに分割"""
         try:
             if len(text) <= chunk_size:
@@ -74,10 +74,18 @@ class PDFProcessor:
                 end = start + chunk_size
                 
                 if end < len(text):
-                    # 単語の境界で切る
-                    last_space = text.rfind(' ', start, end)
-                    if last_space > start:
-                        end = last_space
+                    # 日本語と英語に対応した境界で切る
+                    # 句読点や改行を優先的に探す
+                    for sep in ['。', '\n', '\r\n', '？', '！', '.', '?', '!']:
+                        sep_pos = text.rfind(sep, start, end)
+                        if sep_pos > start:
+                            end = sep_pos + 1
+                            break
+                    else:
+                        # 句読点が見つからない場合は空白で切る
+                        last_space = text.rfind(' ', start, end)
+                        if last_space > start:
+                            end = last_space
                 
                 chunk = text[start:end].strip()
                 if chunk:
