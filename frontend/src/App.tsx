@@ -8,7 +8,7 @@ import { getDocumentCount } from './services/api';
 import { FaRobot, FaHeart } from 'react-icons/fa';
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'upload' | 'search' | 'generate'>('upload');
+  const [currentPage, setCurrentPage] = useState<'upload' | 'search' | 'generate'>('search');
   const [searchResults, setSearchResults] = useState<FileSearchResult[]>([]);
   const [lastQuery, setLastQuery] = useState('');
   const [documentCount, setDocumentCount] = useState(0);

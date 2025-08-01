@@ -102,31 +102,6 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, documentCount 
           backdropFilter: 'blur(10px)'
         }}>
           <button
-            onClick={() => onNavigate('upload')}
-            style={{
-              ...buttonStyle.base,
-              ...(currentPage === 'upload' ? buttonStyle.active : buttonStyle.inactive)
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== 'upload') {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
-                e.currentTarget.style.color = '#ffffff';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (currentPage !== 'upload') {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                e.currentTarget.style.color = '#b8c6db';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }
-            }}
-          >
-            {/* @ts-ignore */}
-            <FiUpload style={{ fontSize: '16px' }} />
-            アップロード
-          </button>
-          <button
             onClick={() => onNavigate('search')}
             style={{
               ...buttonStyle.base,
@@ -175,6 +150,31 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, documentCount 
             {/* @ts-ignore */}
             <FiFileText style={{ fontSize: '16px' }} />
             資料生成
+          </button>
+          <button
+            onClick={() => onNavigate('upload')}
+            style={{
+              ...buttonStyle.base,
+              ...(currentPage === 'upload' ? buttonStyle.active : buttonStyle.inactive)
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 'upload') {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 'upload') {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.color = '#b8c6db';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }
+            }}
+          >
+            {/* @ts-ignore */}
+            <FiUpload style={{ fontSize: '16px' }} />
+            アップロード
           </button>
         </nav>
 
