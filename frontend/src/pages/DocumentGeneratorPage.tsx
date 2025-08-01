@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FileSearchResult, GenerateDocumentRequest, GeneratedDocument } from '../types';
-import { generateDocument } from '../services/api';
+import { generateDocument, downloadGeneratedPdf } from '../services/api';
 import { FaRobot, FaDownload, FaSearch, FaExclamationTriangle, FaClock, FaRocket, FaTimes } from 'react-icons/fa';
 import { FiFile, FiFileText, FiBookOpen, FiBarChart, FiMic } from 'react-icons/fi';
 
@@ -42,18 +42,22 @@ const DocumentGeneratorPage: React.FC<DocumentGeneratorPageProps> = ({ searchRes
     }
   };
 
-  const handleDownload = () => {
-    if (!generatedDocument) return;
-
-    const blob = new Blob([generatedDocument.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `generated_document_${new Date().getTime()}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleDownload = async () => {
+    if (!generatedDocument || !generatedDocument.pdf_filename) return;
+    
+    try {
+      const pdfBlob = await downloadGeneratedPdf(generatedDocument.pdf_filename);
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = generatedDocument.pdf_filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      setError(`PDFダウンロードエラー: ${error.message}`);
+    }
   };
 
   const getDocumentTypeLabel = (type: string) => {

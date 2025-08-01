@@ -80,3 +80,17 @@ export const generateDocument = async (request: GenerateDocumentRequest): Promis
     throw error;
   }
 };
+
+export const downloadGeneratedPdf = async (filename: string): Promise<Blob> => {
+  console.log('Downloading PDF:', filename);
+  try {
+    const response = await api.get(`/generated-pdf/${filename}`, {
+      responseType: 'blob'
+    });
+    console.log('Download completed');
+    return response.data;
+  } catch (error: any) {
+    console.error('PDF download error:', error.response?.data || error.message);
+    throw error;
+  }
+};

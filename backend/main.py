@@ -10,6 +10,16 @@ from dotenv import load_dotenv
 from pdf_processor import PDFProcessor
 from search_engine import HybridSearchEngine
 import openai
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import black, blue
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+import tempfile
+import urllib.request
 
 load_dotenv()
 
@@ -64,6 +74,7 @@ class GeneratedDocument(BaseModel):
     source_files: List[str]
     generated_at: str
     query: str
+    pdf_filename: Optional[str] = None
 
 @app.get("/")
 async def root():
@@ -378,13 +389,134 @@ def get_document_generation_prompt(document_type: str, query: str, search_result
 **カスタム指示:**
 {custom_prompt if custom_prompt else "特になし"}
 
-**出力形式:** Markdown形式で見やすく整理してください。"""
+**出力形式:** プレーンテキスト形式で構造化してください。Markdown記法（#、*、**、-、```など）は使用禁止です。見出しは全て大文字で表記し、リストは「1.」「2.」や「・」で表現してください。PDFに直接変換されるためプレーンテキストのみ使用してください。"""
 
     return prompt
 
-@app.post("/generate-document", response_model=GeneratedDocument)
+def create_pdf_document(content: str, document_type: str, query: str, source_files: List[str]) -> str:
+    """PDFドキュメントを作成し、ファイルパスを返す"""
+    # 日本語フォントを登録
+    try:
+        # HeiseiMin-W3 (日本語フォント) を登録
+        pdfmetrics.registerFont(UnicodeCIDFont('HeiseiMin-W3'))
+        japanese_font = 'HeiseiMin-W3'
+    except:
+        try:
+            # 代替フォントとしてHeiseiKakuGo-W5を試す
+            pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
+            japanese_font = 'HeiseiKakuGo-W5'
+        except:
+            # どちらも使用できない場合はHelveticaを使用
+            japanese_font = 'Helvetica'
+    
+    # 一時ファイルを作成
+    temp_dir = os.path.join("backend", "temp_pdfs")
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    pdf_filename = f"{document_type}_{timestamp}.pdf"
+    pdf_path = os.path.join(temp_dir, pdf_filename)
+    
+    # PDFドキュメントを作成
+    doc = SimpleDocTemplate(pdf_path, pagesize=A4,
+                           rightMargin=2*cm, leftMargin=2*cm,
+                           topMargin=2*cm, bottomMargin=2*cm)
+    
+    # スタイルを設定（日本語フォントを使用）
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontName=japanese_font,
+        fontSize=18,
+        spaceAfter=30,
+        alignment=1  # center
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontName=japanese_font,
+        fontSize=14,
+        spaceAfter=12,
+        spaceBefore=12
+    )
+    
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontName=japanese_font,
+        fontSize=10,
+        spaceAfter=12,
+        leading=14
+    )
+    
+    # コンテンツを構築
+    story = []
+    
+    # タイトル
+    document_titles = {
+        "summary": "要約レポート",
+        "report": "詳細分析レポート", 
+        "presentation": "プレゼンテーション資料"
+    }
+    title = document_titles.get(document_type, "生成資料")
+    story.append(Paragraph(title, title_style))
+    story.append(Spacer(1, 20))
+    
+    # クエリ情報
+    story.append(Paragraph(f"<b>検索クエリ:</b> {query}", normal_style))
+    story.append(Paragraph(f"<b>生成日時:</b> {datetime.now().strftime('%Y年%m月%d日 %H:%M')}", normal_style))
+    story.append(Paragraph(f"<b>参考資料:</b> {', '.join(source_files)}", normal_style))
+    story.append(Spacer(1, 20))
+    
+    # 区切り線
+    story.append(Paragraph("_" * 80, normal_style))
+    story.append(Spacer(1, 20))
+    
+    # メインコンテンツを処理
+    lines = content.split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            story.append(Spacer(1, 6))
+            continue
+            
+        # 全て大文字の行を見出しとして処理
+        if line.isupper() and len(line) > 3:
+            story.append(Paragraph(line, heading_style))
+        # 数字付きリストを処理
+        elif line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')):
+            story.append(Paragraph(line, normal_style))
+        # 記号付きリストを処理
+        elif line.startswith('・') or line.startswith('○') or line.startswith('●'):
+            story.append(Paragraph(line, normal_style))
+        else:
+            # 長いテキストを適切に処理
+            if len(line) > 100:
+                # 長い行を複数の段落に分割
+                words = line.split(' ')
+                current_line = ""
+                for word in words:
+                    if len(current_line + word) > 100:
+                        if current_line:
+                            story.append(Paragraph(current_line.strip(), normal_style))
+                        current_line = word + " "
+                    else:
+                        current_line += word + " "
+                if current_line:
+                    story.append(Paragraph(current_line.strip(), normal_style))
+            else:
+                story.append(Paragraph(line, normal_style))
+    
+    # PDFを構築
+    doc.build(story)
+    
+    return pdf_filename
+
+@app.post("/generate-document")
 async def generate_document(request: GenerateDocumentRequest):
-    """検索結果を基にAI資料を生成"""
+    """検索結果を基にPDF資料を生成"""
     try:
         if not request.search_results:
             raise HTTPException(status_code=400, detail="検索結果が提供されていません")
@@ -403,7 +535,7 @@ async def generate_document(request: GenerateDocumentRequest):
             messages=[
                 {
                     "role": "system",
-                    "content": "あなたは優秀な資料作成アシスタントです。提供された情報を基に、正確で分かりやすい資料を作成してください。情報の出典を明記し、客観的で論理的な内容にしてください。"
+                    "content": "あなたは優秀な資料作成アシスタントです。提供された情報を基に、正確で分かりやすい資料を作成してください。情報の出典を明記し、客観的で論理的な内容にしてください。重要：Markdown記法（#、##、**、*、-、```など）は一切使用せず、プレーンテキストで構造化してください。見出しは大文字や改行で区別し、リストは数字や記号で表現してください。"
                 },
                 {
                     "role": "user",
@@ -417,17 +549,42 @@ async def generate_document(request: GenerateDocumentRequest):
         generated_content = response.choices[0].message.content
         source_files = list(set([result.source for result in request.search_results]))
         
+        # PDFを生成
+        pdf_filename = create_pdf_document(
+            generated_content,
+            request.document_type,
+            request.query,
+            source_files
+        )
+        
         return GeneratedDocument(
             content=generated_content,
             document_type=request.document_type,
             source_files=source_files,
             generated_at=datetime.now().isoformat(),
-            query=request.query
+            query=request.query,
+            pdf_filename=pdf_filename
         )
         
     except Exception as e:
         print(f"Document generation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"資料生成エラー: {str(e)}")
+
+@app.get("/generated-pdf/{filename}")
+async def get_generated_pdf(filename: str):
+    """生成されたPDFファイルを返す"""
+    # セキュリティのためパスを正規化
+    safe_filename = os.path.basename(filename)
+    file_path = os.path.join("backend", "temp_pdfs", safe_filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Generated PDF not found: {safe_filename}")
+    
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename=safe_filename
+    )
 
 @app.get("/favicon.ico")
 async def favicon():

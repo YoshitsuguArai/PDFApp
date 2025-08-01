@@ -51,4 +51,5 @@ export interface GeneratedDocument {
   source_files: string[];
   generated_at: string;
   query: string;
+  pdf_filename?: string;
 }

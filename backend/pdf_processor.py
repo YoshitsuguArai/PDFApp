@@ -113,6 +113,137 @@ class PDFProcessor:
             # エラーが発生した場合は元のテキストをそのまま返す
             return [text]
     
+    def generate_pdf(self, content: str) -> str:
+        """テキストからPDFファイルを生成"""
+        from weasyprint import HTML, CSS
+        from weasyprint.text.fonts import FontConfiguration
+        import datetime
+        import re
+
+        # 一時ファイル名を生成
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_filename = f"summary_{timestamp}.pdf"
+        output_path = os.path.join("backend/backend/temp_pdfs", output_filename)
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # コンテンツを整形
+        def format_content(text: str) -> str:
+            lines = text.split('\n')
+            html_parts = []
+            current_section = None
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                # メタデータ行の処理
+                if ': ' in line and not line.startswith('-'):
+                    key, value = line.split(': ', 1)
+                    html_parts.append(f'<div class="metadata"><span class="key">{key}</span>: {value}</div>')
+                
+                # 区切り線
+                elif line.startswith('_'):
+                    html_parts.append('<hr>')
+                
+                # 番号付きの見出し
+                elif re.match(r'^\d+\.\s', line):
+                    if not any(c in line for c in ['-', '・']):  # 箇条書きでない場合は見出しとして扱う
+                        title = re.sub(r'^\d+\.\s', '', line)
+                        html_parts.append(f'<h2>{title}</h2>')
+                        current_section = []
+                
+                # 箇条書き
+                elif line.startswith('-') or line.startswith('・'):
+                    content = line[1:].strip()
+                    html_parts.append(f'<li>{content}</li>')
+                
+                # その他の通常のテキスト
+                else:
+                    html_parts.append(f'<p>{line}</p>')
+            
+            return '\n'.join(html_parts)
+
+        # HTMLテンプレートを作成
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @font-face {{
+                    font-family: 'YuGothic';
+                    src: local('Yu Gothic');
+                    font-weight: normal;
+                }}
+                body {{
+                    font-family: 'YuGothic', 'Yu Gothic', sans-serif;
+                    font-size: 11pt;
+                    line-height: 1.6;
+                    margin: 2.5cm;
+                    color: #333;
+                }}
+                .metadata {{
+                    margin: 0.3em 0;
+                    color: #666;
+                }}
+                .metadata .key {{
+                    font-weight: bold;
+                    color: #333;
+                }}
+                h1 {{
+                    font-size: 16pt;
+                    margin: 1em 0;
+                    padding-bottom: 0.5em;
+                    border-bottom: 2px solid #333;
+                }}
+                h2 {{
+                    font-size: 13pt;
+                    margin: 1.5em 0 0.5em;
+                    padding-left: 0.5em;
+                    border-left: 4px solid #666;
+                }}
+                p {{
+                    margin: 0.7em 0;
+                    text-align: justify;
+                }}
+                li {{
+                    margin: 0.5em 0;
+                    line-height: 1.4;
+                    list-style-type: none;
+                    text-indent: -1.5em;
+                    padding-left: 1.5em;
+                }}
+                li:before {{
+                    content: "•";
+                    margin-right: 0.5em;
+                }}
+                hr {{
+                    border: none;
+                    border-top: 1px solid #ccc;
+                    margin: 1em 0;
+                }}
+            </style>
+        </head>
+        <body>
+            {format_content(content)}
+        </body>
+        </html>
+        """
+
+        # フォント設定
+        font_config = FontConfiguration()
+        
+        # HTMLからPDFを生成
+        HTML(string=html_content).write_pdf(
+            output_path,
+            font_config=font_config,
+            optimize_size=('fonts', 'images'),
+            presentational_hints=True
+        )
+
+        return output_filename
+
     def process_pdf_file(self, file_path: str) -> List[Dict[str, any]]:
         """PDFファイルを処理してチャンクに分割"""
         print("PDF extraction completed, starting chunk processing...")

@@ -7,3 +7,4 @@ python-dotenv
 chromadb
 sentence-transformers
 scikit-learn
+reportlab

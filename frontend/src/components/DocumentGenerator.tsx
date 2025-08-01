@@ -41,17 +41,15 @@ const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ searchResults, qu
   };
 
   const handleDownload = () => {
-    if (!generatedDocument) return;
+    if (!generatedDocument || !generatedDocument.pdf_filename) return;
 
-    const blob = new Blob([generatedDocument.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `generated_document_${new Date().getTime()}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // PDFファイルをダウンロード
+    const link = document.createElement('a');
+    link.href = `http://localhost:9000/generated-pdf/${generatedDocument.pdf_filename}`;
+    link.download = generatedDocument.pdf_filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getDocumentTypeLabel = (type: string) => {
@@ -154,7 +152,7 @@ const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ searchResults, qu
         {isGenerating ? '🔄 生成中...' : '🚀 資料を生成'}
       </button>
 
-      {generatedDocument && (
+      {generatedDocument && generatedDocument.pdf_filename && (
         <button
           onClick={handleDownload}
           style={{
@@ -168,7 +166,7 @@ const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ searchResults, qu
             fontWeight: 'bold'
           }}
         >
-          📥 ダウンロード
+          📥 PDFダウンロード
         </button>
       )}
 
@@ -213,17 +211,20 @@ const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ searchResults, qu
             </div>
             
             <div style={{
-              whiteSpace: 'pre-wrap',
-              lineHeight: '1.6',
-              fontSize: '14px',
-              maxHeight: '500px',
-              overflowY: 'auto',
-              border: '1px solid #e9ecef',
-              padding: '15px',
-              borderRadius: '4px',
-              backgroundColor: '#ffffff'
+              padding: '20px',
+              textAlign: 'center',
+              border: '2px dashed #007bff',
+              borderRadius: '8px',
+              backgroundColor: '#f8f9fa'
             }}>
-              {generatedDocument.content}
+              <div style={{ fontSize: '48px', marginBottom: '10px' }}>📄</div>
+              <h4 style={{ color: '#007bff', marginBottom: '10px' }}>PDFファイルが生成されました</h4>
+              <p style={{ color: '#666', marginBottom: '15px' }}>
+                ファイル名: {generatedDocument.pdf_filename}
+              </p>
+              <p style={{ color: '#666', fontSize: '14px' }}>
+                上記の「PDFダウンロード」ボタンをクリックしてダウンロードしてください。
+              </p>
             </div>
           </div>
         </div>
