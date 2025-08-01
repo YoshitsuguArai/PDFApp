@@ -37,3 +37,18 @@ export interface UploadResponse {
   chunks_created: number;
   total_documents: number;
 }
+
+export interface GenerateDocumentRequest {
+  search_results: FileSearchResult[];
+  document_type: 'summary' | 'report' | 'presentation';
+  query: string;
+  custom_prompt?: string;
+}
+
+export interface GeneratedDocument {
+  content: string;
+  document_type: string;
+  source_files: string[];
+  generated_at: string;
+  query: string;
+}

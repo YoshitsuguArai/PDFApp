@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SearchQuery, SearchResult, FileSearchResult, UploadResponse } from '../types';
+import { SearchQuery, SearchResult, FileSearchResult, UploadResponse, GenerateDocumentRequest, GeneratedDocument } from '../types';
 
 const API_BASE_URL = 'http://localhost:9000';
 
@@ -66,4 +66,17 @@ export const getDocumentCount = async (): Promise<{ count: number }> => {
 export const clearDocuments = async (): Promise<{ message: string }> => {
   const response = await api.delete('/documents');
   return response.data;
+};
+
+export const generateDocument = async (request: GenerateDocumentRequest): Promise<GeneratedDocument> => {
+  console.log('Generate document request:', request);
+  
+  try {
+    const response = await api.post('/generate-document', request);
+    console.log('Generate document response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Generate document error:', error.response?.data || error.message);
+    throw error;
+  }
 };

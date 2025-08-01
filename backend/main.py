@@ -5,9 +5,11 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os
 import shutil
+from datetime import datetime
 from dotenv import load_dotenv
 from pdf_processor import PDFProcessor
 from search_engine import HybridSearchEngine
+import openai
 
 load_dotenv()
 
@@ -24,6 +26,9 @@ app.add_middleware(
 # グローバルインスタンス
 pdf_processor = PDFProcessor(upload_dir="backend/uploads")
 search_engine = HybridSearchEngine()
+
+# OpenAI クライアント
+openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class SearchQuery(BaseModel):
     query: str
@@ -46,6 +51,19 @@ class FileSearchResult(BaseModel):
     best_chunk: str
     pages: List[int]
     search_type: str
+
+class GenerateDocumentRequest(BaseModel):
+    search_results: List[FileSearchResult]
+    document_type: str  # "summary", "report", "presentation"
+    query: str
+    custom_prompt: Optional[str] = None
+
+class GeneratedDocument(BaseModel):
+    content: str
+    document_type: str
+    source_files: List[str]
+    generated_at: str
+    query: str
 
 @app.get("/")
 async def root():
@@ -295,6 +313,121 @@ async def get_pdf(filename: str):
         media_type="application/pdf",
         filename=safe_filename
     )
+
+def get_document_generation_prompt(document_type: str, query: str, search_results: List[FileSearchResult], custom_prompt: Optional[str] = None) -> str:
+    """ドキュメント生成用のプロンプトを作成"""
+    
+    # 検索結果から詳細なコンテンツを取得
+    detailed_content = []
+    source_files = []
+    
+    for result in search_results:
+        source_files.append(result.source)
+        # 各ファイルの詳細チャンクを取得
+        file_chunks = search_engine.get_documents_by_source(result.source)
+        # 関連性の高いチャンクを抽出（スコアでソート）
+        relevant_chunks = []
+        for chunk in file_chunks:
+            if any(page in result.pages for page in [chunk.get('page', 0)]):
+                relevant_chunks.append(chunk)
+        
+        # 最大3チャンクまで
+        for chunk in relevant_chunks[:3]:
+            detailed_content.append(f"【{result.source} - ページ{chunk.get('page', '?')}】\n{chunk['content']}")
+    
+    # ドキュメントタイプ別のプロンプト
+    type_prompts = {
+        "summary": """以下の検索結果を基に、簡潔で分かりやすい要約レポートを作成してください。
+
+**要求事項:**
+- 主要なポイントを3-5個にまとめる
+- 各ポイントは具体的な根拠を含める
+- 読みやすい構造（見出し、箇条書きを活用）
+- 重要な数値やデータがあれば強調""",
+
+        "report": """以下の検索結果を基に、詳細な分析レポートを作成してください。
+
+**要求事項:**
+- 背景・現状分析
+- 主要な発見事項と考察
+- 課題と提言
+- 参考データの明示
+- 論理的な構成と客観的な分析""",
+
+        "presentation": """以下の検索結果を基に、プレゼンテーション用の資料を作成してください。
+
+**要求事項:**
+- スライド構成で作成（各セクションを明確に区分）
+- 要点を視覚的に分かりやすく整理
+- 聴衆が理解しやすい流れ
+- 重要なポイントは強調表示
+- 各スライドにタイトルを付ける"""
+    }
+    
+    base_prompt = type_prompts.get(document_type, type_prompts["summary"])
+    
+    content_text = "\n\n".join(detailed_content)
+    
+    prompt = f"""{base_prompt}
+
+**検索クエリ:** {query}
+
+**参考資料:**
+{content_text}
+
+**カスタム指示:**
+{custom_prompt if custom_prompt else "特になし"}
+
+**出力形式:** Markdown形式で見やすく整理してください。"""
+
+    return prompt
+
+@app.post("/generate-document", response_model=GeneratedDocument)
+async def generate_document(request: GenerateDocumentRequest):
+    """検索結果を基にAI資料を生成"""
+    try:
+        if not request.search_results:
+            raise HTTPException(status_code=400, detail="検索結果が提供されていません")
+        
+        # プロンプトを生成
+        prompt = get_document_generation_prompt(
+            request.document_type,
+            request.query,
+            request.search_results,
+            request.custom_prompt
+        )
+        
+        # OpenAI APIで資料生成
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "あなたは優秀な資料作成アシスタントです。提供された情報を基に、正確で分かりやすい資料を作成してください。情報の出典を明記し、客観的で論理的な内容にしてください。"
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=3000,
+            temperature=0.3
+        )
+        
+        generated_content = response.choices[0].message.content
+        source_files = list(set([result.source for result in request.search_results]))
+        
+        return GeneratedDocument(
+            content=generated_content,
+            document_type=request.document_type,
+            source_files=source_files,
+            generated_at=datetime.now().isoformat(),
+            query=request.query
+        )
+        
+    except Exception as e:
+        print(f"Document generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"資料生成エラー: {str(e)}")
 
 @app.get("/favicon.ico")
 async def favicon():
