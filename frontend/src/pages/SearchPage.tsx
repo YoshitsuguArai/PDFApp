@@ -52,63 +52,92 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearchComplete }) => {
   };
 
   return (
-    <div style={{ padding: '30px', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ 
+      padding: '20px', 
+      minHeight: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      maxWidth: '1200px',
+      margin: '0 auto'
+    }}>
       {/* ページタイトル */}
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
         <h1 style={{ 
-          fontSize: '28px', 
-          margin: '0 0 12px 0', 
+          fontSize: 'clamp(24px, 5vw, 32px)', 
+          margin: '0 0 16px 0', 
           color: '#1a1a2e',
-          fontWeight: '600'
+          fontWeight: '700',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          flexWrap: 'wrap'
         }}>
           {/* @ts-ignore */}
-          <FiSearch style={{ marginRight: '8px', fontSize: '28px', verticalAlign: 'middle' }} />
+          <FiSearch style={{ fontSize: 'clamp(28px, 5vw, 36px)' }} />
           ドキュメント検索
         </h1>
         <p style={{ 
-          fontSize: '15px', 
+          fontSize: 'clamp(14px, 2.5vw, 16px)', 
           color: '#666', 
-          margin: '0',
-          lineHeight: '1.5'
+          lineHeight: '1.6',
+          maxWidth: '600px',
+          margin: '0 auto'
         }}>
-          登録されたPDFファイルからハイブリッド検索（セマンティック + キーワード）で情報を検索
+          登録されたPDFファイルからAI搭載ハイブリッド検索で高精度な情報検索を実現
         </p>
       </div>
 
       {/* 現在のドキュメント状況 */}
       <div style={{
-        backgroundColor: documentCount > 0 ? '#e8f5e8' : '#fff3cd',
-        border: `1px solid ${documentCount > 0 ? '#c3e6cb' : '#ffeaa7'}`,
-        borderRadius: '8px',
-        padding: '20px',
-        marginBottom: '25px',
-        textAlign: 'center'
+        background: documentCount > 0 
+          ? 'linear-gradient(135deg, #e8f5e8 0%, #f8fff8 100%)'
+          : 'linear-gradient(135deg, #fff3cd 0%, #fffdf5 100%)',
+        border: `2px solid ${documentCount > 0 ? '#28a745' : '#ffc107'}`,
+        borderRadius: '16px',
+        padding: '24px',
+        marginBottom: '30px',
+        textAlign: 'center',
+        boxShadow: documentCount > 0
+          ? '0 4px 20px rgba(40, 167, 69, 0.1)'
+          : '0 4px 20px rgba(255, 193, 7, 0.1)'
       }}>
         <div style={{ 
-          fontSize: '36px', 
-          marginBottom: '12px'
+          fontSize: '48px', 
+          marginBottom: '16px',
+          display: 'flex',
+          justifyContent: 'center'
         }}>
           {documentCount > 0 ? (
-            <div style={{ fontSize: '36px' }}>📚</div>
+            // @ts-ignore
+            <FiBookOpen style={{ 
+              fontSize: '48px',
+              color: '#28a745'
+            }} />
           ) : (
-            <div style={{ fontSize: '36px' }}>📁</div>
+            // @ts-ignore
+            <FiFolder style={{ 
+              fontSize: '48px',
+              color: '#ffc107'
+            }} />
           )}
         </div>
         <h3 style={{ 
-          margin: '0 0 8px 0', 
-          fontSize: '18px',
+          margin: '0 0 12px 0', 
+          fontSize: '22px',
           color: documentCount > 0 ? '#155724' : '#856404',
-          fontWeight: '600'
+          fontWeight: '700'
         }}>
           {documentCount > 0 ? `${documentCount}件のドキュメントが利用可能` : 'ドキュメントが登録されていません'}
         </h3>
         <p style={{ 
           margin: '0', 
-          fontSize: '14px',
-          color: documentCount > 0 ? '#155724' : '#856404'
+          fontSize: '16px',
+          color: documentCount > 0 ? '#155724' : '#856404',
+          opacity: 0.9
         }}>
           {documentCount > 0 
-            ? 'ハイブリッド検索で情報を検索できます' 
+            ? 'AI搭載ハイブリッド検索で高精度な情報検索が可能です' 
             : 'まずアップロードページでPDFファイルをアップロードしてください'}
         </p>
       </div>
@@ -131,24 +160,13 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearchComplete }) => {
 
       {/* 検索フォーム */}
       <div style={{
-        backgroundColor: 'white',
-        border: '1px solid #e9ecef',
-        borderRadius: '8px',
-        padding: '25px',
-        marginBottom: '25px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+        background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+        border: '2px solid #e9ecef',
+        borderRadius: '20px',
+        padding: '32px',
+        marginBottom: '30px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
       }}>
-        <h2 style={{ 
-          marginBottom: '20px', 
-          color: '#1a1a2e',
-          fontSize: '20px',
-          textAlign: 'center',
-          fontWeight: '600'
-        }}>
-          {/* @ts-ignore */}
-          <FiSearch style={{ marginRight: '8px', fontSize: '20px', verticalAlign: 'middle' }} />
-          検索クエリを入力
-        </h2>
         <SearchForm
           onSearch={handleSearch}
           isSearching={isSearching}
@@ -158,11 +176,11 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearchComplete }) => {
       {/* 検索結果 */}
       {(searchResults.length > 0 || (lastQuery && !isSearching)) && (
         <div style={{
-          backgroundColor: 'white',
-          border: '1px solid #e9ecef',
-          borderRadius: '8px',
-          padding: '25px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+          background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+          border: '2px solid #e9ecef',
+          borderRadius: '20px',
+          padding: '32px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
           flex: 1
         }}>
           <div style={{
@@ -196,26 +214,38 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearchComplete }) => {
           
           {searchResults.length > 0 && (
             <div style={{
-              marginTop: '30px',
-              padding: '20px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              textAlign: 'center'
+              marginTop: '32px',
+              padding: '24px',
+              background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
+              border: '2px solid #2196f320',
+              borderRadius: '16px',
+              textAlign: 'center',
+              boxShadow: '0 4px 16px rgba(33, 150, 243, 0.1)'
             }}>
-              <p style={{ 
-                margin: '0 0 10px 0', 
-                fontSize: '16px', 
-                fontWeight: 'bold',
-                color: '#333'
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginBottom: '12px'
               }}>
                 {/* @ts-ignore */}
-                <FiInfo style={{ marginRight: '8px', fontSize: '16px', verticalAlign: 'middle' }} />
+                <FiInfo style={{ 
+                  fontSize: '28px',
+                  color: '#2196f3'
+                }} />
+              </div>
+              <p style={{ 
+                margin: '0 0 12px 0', 
+                fontSize: '18px', 
+                fontWeight: '700',
+                color: '#1565c0'
+              }}>
                 検索結果を活用してAI資料を生成しませんか？
               </p>
               <p style={{ 
                 margin: '0', 
-                fontSize: '14px', 
-                color: '#666'
+                fontSize: '15px', 
+                color: '#424242',
+                lineHeight: '1.5'
               }}>
                 「資料生成」ページで検索結果を基に要約・レポート・プレゼン資料を自動作成できます
               </p>
