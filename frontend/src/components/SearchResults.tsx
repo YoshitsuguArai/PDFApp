@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileSearchResult } from '../types';
+import { FiEye, FiExternalLink } from 'react-icons/fi';
+import PDFViewer from './PDFViewer';
 
 interface SearchResultsProps {
   results: FileSearchResult[];
@@ -7,6 +9,17 @@ interface SearchResultsProps {
 }
 
 const SearchResults: React.FC<SearchResultsProps> = ({ results, query }) => {
+  const [selectedPDF, setSelectedPDF] = useState<{ filename: string; url: string } | null>(null);
+
+  const openPDFModal = (filename: string) => {
+    const pdfUrl = `http://localhost:9000/pdf/view/${filename}`;
+    setSelectedPDF({ filename, url: pdfUrl });
+  };
+
+  const closePDFModal = () => {
+    setSelectedPDF(null);
+  };
+
   if (results.length === 0) {
     return (
       <div style={{
@@ -134,29 +147,81 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, query }) => {
               marginBottom: '10px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <a
-                  href={`http://localhost:9000/pdf/${result.source}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    backgroundColor: '#007bff',
-                    color: 'white',
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    backgroundColor: '#f8f9fa',
+                    color: '#495057',
                     padding: '4px 8px',
                     borderRadius: '4px',
                     fontSize: '12px',
                     fontWeight: 'bold',
-                    textDecoration: 'none',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#0056b3';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#007bff';
-                  }}
-                >
-                  📄 {result.source}
-                </a>
+                    border: '1px solid #dee2e6'
+                  }}>
+                    📄 {result.source}
+                  </span>
+                  
+                  <button
+                    onClick={() => openPDFModal(result.source)}
+                    style={{
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#0056b3';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#007bff';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {/* @ts-ignore */}
+                    <FiEye style={{ fontSize: '12px' }} />
+                    閲覧
+                  </button>
+                  
+                  <a
+                    href={`http://localhost:9000/pdf/view/${result.source}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      backgroundColor: '#17a2b8',
+                      color: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      textDecoration: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#138496';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#17a2b8';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {/* @ts-ignore */}
+                    <FiExternalLink style={{ fontSize: '12px' }} />
+                    新タブ表示
+                  </a>
+                </div>
                 <span style={{
                   backgroundColor: '#d1ecf1',
                   padding: '4px 8px',
@@ -262,6 +327,16 @@ const SearchResults: React.FC<SearchResultsProps> = ({ results, query }) => {
           </div>
         ))}
       </div>
+      
+      {/* PDFビューアーモーダル */}
+      {selectedPDF && (
+        <PDFViewer
+          pdfUrl={selectedPDF.url}
+          filename={selectedPDF.filename}
+          isOpen={!!selectedPDF}
+          onClose={closePDFModal}
+        />
+      )}
     </div>
   );
 };

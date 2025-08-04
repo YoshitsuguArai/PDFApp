@@ -34,7 +34,15 @@ app.add_middleware(
 )
 
 # グローバルインスタンス
-pdf_processor = PDFProcessor(upload_dir="backend/uploads")
+# 絶対パスで正確に指定
+import pathlib
+# main.pyの場所を基準にアップロードディレクトリを指定
+main_dir = pathlib.Path(__file__).parent  # C:/PDFAI/backend
+upload_dir = main_dir / "backend" / "uploads"  # C:/PDFAI/backend/backend/uploads
+print(f"[INIT] Main dir: {main_dir}")
+print(f"[INIT] Upload dir: {upload_dir}")
+print(f"[INIT] Upload dir exists: {upload_dir.exists()}")
+pdf_processor = PDFProcessor(upload_dir=str(upload_dir))
 search_engine = HybridSearchEngine()
 
 # OpenAI クライアント
@@ -306,23 +314,58 @@ async def clear_documents():
 
 @app.get("/pdf/{filename}")
 async def get_pdf(filename: str):
-    """PDFファイルを返す"""
+    """PDFファイルを返す（ダウンロード用）"""
     # セキュリティのためパスを正規化
     safe_filename = os.path.basename(filename)
-    file_path = os.path.join(pdf_processor.upload_dir, safe_filename)
+    
+    # pathlibを使用してクロスプラットフォーム対応
+    upload_path = pathlib.Path(pdf_processor.upload_dir)
+    file_path = upload_path / safe_filename
     
     # デバッグ情報を追加
-    print(f"Looking for PDF: {safe_filename}")
-    print(f"Full path: {file_path}")
-    print(f"File exists: {os.path.exists(file_path)}")
+    print(f"[DOWNLOAD] Looking for PDF: {safe_filename}")
+    print(f"[DOWNLOAD] Full path: {file_path}")
+    print(f"[DOWNLOAD] File exists: {file_path.exists()}")
     
-    if not os.path.exists(file_path):
+    if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"PDF file not found: {safe_filename} at {file_path}")
     
     return FileResponse(
-        path=file_path,
+        path=str(file_path),
         media_type="application/pdf",
         filename=safe_filename
+    )
+
+@app.get("/pdf/view/{filename}")
+async def view_pdf(filename: str):
+    """PDFファイルを返す（ブラウザ表示用）"""
+    # セキュリティのためパスを正規化
+    safe_filename = os.path.basename(filename)
+    
+    # pathlibを使用してクロスプラットフォーム対応
+    upload_path = pathlib.Path(pdf_processor.upload_dir)
+    file_path = upload_path / safe_filename
+    
+    # デバッグ情報を追加
+    print(f"[VIEW] Looking for PDF: {safe_filename}")
+    print(f"[VIEW] Upload dir: {pdf_processor.upload_dir}")
+    print(f"[VIEW] Full path: {file_path}")
+    print(f"[VIEW] File exists: {file_path.exists()}")
+    
+    if not file_path.exists():
+        # 利用可能なファイルもログ出力
+        if upload_path.exists():
+            available_files = [f.name for f in upload_path.iterdir() if f.is_file()]
+            print(f"[VIEW] Available files: {available_files}")
+        raise HTTPException(status_code=404, detail=f"PDF file not found: {safe_filename} at {file_path}")
+    
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "inline",
+            "Cache-Control": "no-cache"
+        }
     )
 
 def get_document_generation_prompt(document_type: str, query: str, search_results: List[FileSearchResult], custom_prompt: Optional[str] = None) -> str:
