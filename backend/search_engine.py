@@ -277,7 +277,8 @@ class HybridSearchEngine:
             hybrid_score = (semantic_weight * semantic_score + 
                            keyword_weight * keyword_score)
             
-            result['score'] = hybrid_score * both_present_bonus
+            # スコアが1.0を超えないように制限
+            result['score'] = min(1.0, hybrid_score * both_present_bonus)
             result['semantic_weight'] = semantic_weight
             result['keyword_weight'] = keyword_weight
         
