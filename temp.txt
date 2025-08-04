@@ -1,1 +1,0 @@
-Test PDF content for search functionality. This document contains various keywords for testing the search system.
