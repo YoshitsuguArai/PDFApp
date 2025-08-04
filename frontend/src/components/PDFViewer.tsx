@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FiX, FiExternalLink, FiDownload } from 'react-icons/fi';
 
 interface PDFViewerProps {
@@ -9,6 +9,8 @@ interface PDFViewerProps {
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, filename, isOpen, onClose }) => {
+  const [isLoading, setIsLoading] = useState(true);
+
   if (!isOpen) return null;
 
   const handleDownload = () => {
@@ -27,6 +29,17 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, filename, isOpen, onClose
     window.open(pdfUrl, '_blank');
   };
 
+  const handleIframeLoad = () => {
+    // PDF読み込み完了時に読み込み中メッセージを非表示
+    setIsLoading(false);
+  };
+
+  const handleClose = () => {
+    // モーダル閉じる時に読み込み状態をリセット
+    setIsLoading(true);
+    onClose();
+  };
+
   return (
     <div style={{
       position: 'fixed',
@@ -41,7 +54,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, filename, isOpen, onClose
       justifyContent: 'center',
       padding: '20px'
     }}
-    onClick={onClose}
+    onClick={handleClose}
     >
       <div style={{
         background: 'white',
@@ -146,7 +159,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, filename, isOpen, onClose
             </button>
             
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 padding: '8px',
                 backgroundColor: '#dc3545',
@@ -194,46 +207,28 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, filename, isOpen, onClose
             title={`PDF Viewer - ${filename}`}
             allow="fullscreen"
             loading="lazy"
+            onLoad={handleIframeLoad}
           />
           
           {/* 読み込み中表示 */}
-          <div style={{
-            position: 'absolute',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            fontSize: '14px',
-            fontWeight: '500',
-            zIndex: 1
-          }}>
-            📄 PDFを読み込み中...
-          </div>
-          
-          {/* フォールバック表示 */}
-          <div style={{
-            position: 'absolute',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            textAlign: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            padding: '12px 20px',
-            borderRadius: '8px',
-            color: '#6c757d',
-            fontSize: '13px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-          }}>
-            <p style={{ margin: '0 0 4px 0', fontWeight: '600' }}>
-              💡 表示されない場合
-            </p>
-            <p style={{ margin: '0', fontSize: '12px' }}>
-              「新しいタブで開く」をお試しください
-            </p>
-          </div>
+          {isLoading && (
+            <div style={{
+              position: 'absolute',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontSize: '14px',
+              fontWeight: '500',
+              zIndex: 1,
+              transition: 'opacity 0.3s ease'
+            }}>
+              📄 PDFを読み込み中...
+            </div>
+          )}
         </div>
       </div>
     </div>
