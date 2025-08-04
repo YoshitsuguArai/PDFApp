@@ -583,8 +583,111 @@ async def get_generated_pdf(filename: str):
     return FileResponse(
         path=file_path,
         media_type="application/pdf",
-        filename=safe_filename
+        headers={"Content-Disposition": "inline"}
     )
+
+@app.get("/generated-pdfs")
+async def get_generated_pdfs():
+    """生成されたPDFの履歴を取得"""
+    try:
+        temp_dir = os.path.join("backend", "temp_pdfs")
+        
+        if not os.path.exists(temp_dir):
+            return {"pdfs": [], "total_count": 0}
+        
+        pdf_files = []
+        for filename in os.listdir(temp_dir):
+            if filename.endswith('.pdf'):
+                file_path = os.path.join(temp_dir, filename)
+                file_stats = os.stat(file_path)
+                
+                # ファイル名から情報を抽出
+                name_parts = filename.replace('.pdf', '').split('_')
+                document_type = name_parts[0] if name_parts else "unknown"
+                timestamp_str = '_'.join(name_parts[1:]) if len(name_parts) > 1 else ""
+                
+                # タイムスタンプをパース
+                try:
+                    created_at = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+                    created_at_iso = created_at.isoformat()
+                    created_at_display = created_at.strftime("%Y年%m月%d日 %H:%M")
+                except:
+                    created_at_iso = datetime.fromtimestamp(file_stats.st_ctime).isoformat()
+                    created_at_display = datetime.fromtimestamp(file_stats.st_ctime).strftime("%Y年%m月%d日 %H:%M")
+                
+                # ドキュメントタイプの日本語表示
+                type_labels = {
+                    "summary": "要約レポート",
+                    "report": "詳細分析レポート", 
+                    "presentation": "プレゼンテーション資料"
+                }
+                type_label = type_labels.get(document_type, document_type)
+                
+                pdf_files.append({
+                    "filename": filename,
+                    "document_type": document_type,
+                    "type_label": type_label,
+                    "created_at": created_at_iso,
+                    "created_at_display": created_at_display,
+                    "file_size": file_stats.st_size,
+                    "file_size_mb": round(file_stats.st_size / (1024 * 1024), 2)
+                })
+        
+        # 作成日時の降順でソート
+        pdf_files.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        return {
+            "pdfs": pdf_files,
+            "total_count": len(pdf_files)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF履歴取得エラー: {str(e)}")
+
+@app.delete("/generated-pdf/{filename}")
+async def delete_generated_pdf(filename: str):
+    """生成されたPDFファイルを削除"""
+    try:
+        # セキュリティのためパスを正規化
+        safe_filename = os.path.basename(filename)
+        file_path = os.path.join("backend", "temp_pdfs", safe_filename)
+        
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"PDF not found: {safe_filename}")
+        
+        os.remove(file_path)
+        
+        return {
+            "message": f"PDF {safe_filename} deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF削除エラー: {str(e)}")
+
+@app.delete("/generated-pdfs")
+async def clear_generated_pdfs():
+    """全ての生成されたPDFファイルを削除"""
+    try:
+        temp_dir = os.path.join("backend", "temp_pdfs")
+        deleted_files = []
+        
+        if os.path.exists(temp_dir):
+            for filename in os.listdir(temp_dir):
+                if filename.endswith('.pdf'):
+                    file_path = os.path.join(temp_dir, filename)
+                    os.remove(file_path)
+                    deleted_files.append(filename)
+        
+        return {
+            "message": "All generated PDFs deleted successfully",
+            "deleted_files": deleted_files,
+            "count": len(deleted_files)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF一括削除エラー: {str(e)}")
 
 @app.get("/favicon.ico")
 async def favicon():

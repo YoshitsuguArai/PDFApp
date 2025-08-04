@@ -1,9 +1,9 @@
 import React from 'react';
-import { FiUpload, FiSearch, FiFileText, FiFile } from 'react-icons/fi';
+import { FiUpload, FiSearch, FiFileText, FiFile, FiFolder } from 'react-icons/fi';
 
 interface HeaderProps {
-  currentPage: 'upload' | 'search' | 'generate';
-  onNavigate: (page: 'upload' | 'search' | 'generate') => void;
+  currentPage: 'upload' | 'search' | 'generate' | 'history';
+  onNavigate: (page: 'upload' | 'search' | 'generate' | 'history') => void;
   documentCount: number;
 }
 
@@ -150,6 +150,31 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, documentCount 
             {/* @ts-ignore */}
             <FiFileText style={{ fontSize: '16px' }} />
             資料生成
+          </button>
+          <button
+            onClick={() => onNavigate('history')}
+            style={{
+              ...buttonStyle.base,
+              ...(currentPage === 'history' ? buttonStyle.active : buttonStyle.inactive)
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 'history') {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 'history') {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.color = '#b8c6db';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }
+            }}
+          >
+            {/* @ts-ignore */}
+            <FiFolder style={{ fontSize: '16px' }} />
+            PDF履歴
           </button>
           <button
             onClick={() => onNavigate('upload')}

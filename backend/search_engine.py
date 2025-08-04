@@ -409,11 +409,12 @@ class HybridSearchEngine:
             file_info['consistency_bonus'] = consistency_bonus
             file_info['avg_score'] = avg_score
             file_info['median_score'] = median_score
-            file_info['top3_avg'] = top3_avg
+            file_info['top3_avg'] = min(1.0, top3_avg)
+            file_info['max_score'] = min(1.0, max_score)
             
-            # 統合スコア
-            file_info['score'] = (relevance_score * page_bonus * 
-                                density_adjustment * consistency_bonus)
+            # 統合スコア（1.0を超えないように制限）
+            file_info['score'] = min(1.0, relevance_score * page_bonus * 
+                                    density_adjustment * consistency_bonus)
             
             file_info['pages'].sort()
             # chunksリストを削除（メモリ節約）

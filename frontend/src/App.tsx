@@ -3,12 +3,13 @@ import Header from './components/Header';
 import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import DocumentGeneratorPage from './pages/DocumentGeneratorPage';
+import PDFHistoryPage from './pages/PDFHistoryPage';
 import { FileSearchResult } from './types';
 import { getDocumentCount } from './services/api';
 import { FaRobot, FaHeart } from 'react-icons/fa';
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'upload' | 'search' | 'generate'>('search');
+  const [currentPage, setCurrentPage] = useState<'upload' | 'search' | 'generate' | 'history'>('search');
   const [searchResults, setSearchResults] = useState<FileSearchResult[]>([]);
   const [lastQuery, setLastQuery] = useState('');
   const [documentCount, setDocumentCount] = useState(0);
@@ -31,7 +32,7 @@ const App: React.FC = () => {
     setLastQuery(query);
   };
 
-  const handleNavigate = (page: 'upload' | 'search' | 'generate') => {
+  const handleNavigate = (page: 'upload' | 'search' | 'generate' | 'history') => {
     setCurrentPage(page);
   };
 
@@ -78,6 +79,10 @@ const App: React.FC = () => {
               searchResults={searchResults}
               query={lastQuery}
             />
+          )}
+          
+          {currentPage === 'history' && (
+            <PDFHistoryPage />
           )}
         </div>
       </main>
