@@ -1,6 +1,7 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import os
@@ -25,13 +26,47 @@ load_dotenv()
 
 app = FastAPI(title="PDF Search API", version="1.0.0")
 
+# Remove X-Frame-Options middleware with comprehensive handling
+class RemoveXFrameOptionsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Remove X-Frame-Options header in all possible forms
+        headers_to_remove = [
+            "x-frame-options", 
+            "X-Frame-Options", 
+            "X-FRAME-OPTIONS",
+            "x-Frame-Options"
+        ]
+        
+        for header in headers_to_remove:
+            if header in response.headers:
+                print(f"[MIDDLEWARE] Removing header: {header}")
+                del response.headers[header]
+        
+        # For PDF endpoints, add explicit frame-allowing headers
+        if "/pdf/view/" in str(request.url):
+            print(f"[MIDDLEWARE] Adding frame-friendly headers for PDF: {request.url}")
+            # Explicitly allow framing
+            response.headers["X-Frame-Options"] = "ALLOWALL"
+            # Add CSP to allow framing from any origin
+            response.headers["Content-Security-Policy"] = "frame-ancestors *;"
+            
+        print(f"[MIDDLEWARE] Final headers for {request.url}: {dict(response.headers)}")
+        return response
+
+# CORS middleware should be added BEFORE the X-Frame-Options removal middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],
+    allow_origins=["*"],  # すべてのオリジンを許可
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"]
 )
+
+# Add the X-Frame-Options removal middleware AFTER CORS
+app.add_middleware(RemoveXFrameOptionsMiddleware)
 
 # グローバルインスタンス
 # 絶対パスで正確に指定
@@ -86,7 +121,14 @@ class GeneratedDocument(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "PDF Search API"}
+    # Ensure no X-Frame-Options header is set on the root endpoint
+    response = Response(content='{"message": "PDF Search API"}', media_type="application/json")
+    # Explicitly remove X-Frame-Options if it exists
+    if "x-frame-options" in response.headers:
+        del response.headers["x-frame-options"]
+    if "X-Frame-Options" in response.headers:
+        del response.headers["X-Frame-Options"]
+    return response
 
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -359,14 +401,31 @@ async def view_pdf(filename: str):
             print(f"[VIEW] Available files: {available_files}")
         raise HTTPException(status_code=404, detail=f"PDF file not found: {safe_filename} at {file_path}")
     
-    return FileResponse(
+    # FileResponseを作成
+    response = FileResponse(
         path=str(file_path),
         media_type="application/pdf",
         headers={
             "Content-Disposition": "inline",
-            "Cache-Control": "no-cache"
+            "Cache-Control": "no-cache",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS"
         }
     )
+    
+    # X-Frame-Optionsヘッダーを明示的に削除し、フレーム許可を設定
+    headers_to_remove = ["x-frame-options", "X-Frame-Options", "X-FRAME-OPTIONS"]
+    for header in headers_to_remove:
+        if header in response.headers:
+            print(f"[VIEW] Removing header: {header}")
+            del response.headers[header]
+    
+    # 明示的にフレーミングを許可
+    response.headers["X-Frame-Options"] = "ALLOWALL"
+    response.headers["Content-Security-Policy"] = "frame-ancestors *;"
+    
+    print(f"[VIEW] Final response headers: {dict(response.headers)}")
+    return response
 
 def get_document_generation_prompt(document_type: str, query: str, search_results: List[FileSearchResult], custom_prompt: Optional[str] = None) -> str:
     """ドキュメント生成用のプロンプトを作成"""
@@ -739,4 +798,18 @@ async def favicon():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=9000)
+    from uvicorn.config import Config
+    from uvicorn.server import Server
+    
+    # カスタムサーバー設定でX-Frame-Optionsを完全に制御
+    config = Config(
+        app=app,
+        host="127.0.0.1",
+        port=9000,
+        server_header=False,
+        # ログレベルを設定してデバッグ情報を表示
+        log_level="info"
+    )
+    
+    server = Server(config)
+    server.run()
