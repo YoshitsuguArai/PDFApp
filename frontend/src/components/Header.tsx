@@ -63,7 +63,7 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, documentCount 
         }}>
           <img 
             src="/icon.png" 
-            alt="DocuMind Pro" 
+            alt="Retrieve" 
             style={{
               width: '48px',
               height: '48px',
@@ -79,7 +79,7 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, documentCount 
               color: '#ffffff',
               letterSpacing: '0.3px'
             }}>
-              DocuMind Pro
+              Retrieve
             </h1>
             <p style={{
               margin: '4px 0 0 0',
@@ -87,7 +87,7 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, documentCount 
               color: '#9fb8d3',
               fontWeight: '400'
             }}>
-              Enterprise Document Intelligence
+              AI-Powered Document Search & Analysis
             </p>
           </div>
         </div>

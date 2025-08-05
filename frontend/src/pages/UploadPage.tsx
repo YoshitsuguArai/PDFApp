@@ -172,7 +172,7 @@ const UploadPage: React.FC<UploadPageProps> = ({ onDocumentCountChange }) => {
           <h2 style={{ marginBottom: '20px', color: '#1a1a2e', fontSize: '20px', fontWeight: '600' }}>
             {/* @ts-ignore */}
             <FiUpload style={{ marginRight: '8px', fontSize: '20px', verticalAlign: 'middle' }} />
-            PDFファイルアップロード
+            ドキュメント登録
           </h2>
           <FileUpload
             onUploadSuccess={handleUploadSuccess}

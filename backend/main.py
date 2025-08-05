@@ -24,7 +24,7 @@ import urllib.request
 
 load_dotenv()
 
-app = FastAPI(title="PDF Search API", version="1.0.0")
+app = FastAPI(title="Retrieve API", version="1.1.0")
 
 # Remove X-Frame-Options middleware with comprehensive handling
 class RemoveXFrameOptionsMiddleware(BaseHTTPMiddleware):
@@ -122,7 +122,7 @@ class GeneratedDocument(BaseModel):
 @app.get("/")
 async def root():
     # Ensure no X-Frame-Options header is set on the root endpoint
-    response = Response(content='{"message": "PDF Search API"}', media_type="application/json")
+    response = Response(content='{"message": "Retrieve API"}', media_type="application/json")
     # Explicitly remove X-Frame-Options if it exists
     if "x-frame-options" in response.headers:
         del response.headers["x-frame-options"]

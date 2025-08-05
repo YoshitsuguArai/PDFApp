@@ -93,7 +93,7 @@ const DocumentGeneratorPage: React.FC<DocumentGeneratorPageProps> = ({ searchRes
         }}>
           {/* @ts-ignore */}
           <FaRobot style={{ marginRight: '8px', fontSize: '28px', verticalAlign: 'middle' }} />
-          AI資料生成
+          インテリジェント資料生成
         </h1>
         <p style={{ 
           fontSize: '15px', 
@@ -200,7 +200,7 @@ const DocumentGeneratorPage: React.FC<DocumentGeneratorPageProps> = ({ searchRes
         <h2 style={{ marginBottom: '30px', color: '#333', textAlign: 'center' }}>
           {/* @ts-ignore */}
           <FaRobot style={{ marginRight: '8px', fontSize: '18px', verticalAlign: 'middle' }} />
-          AI資料生成
+          インテリジェント資料生成
         </h2>
 
         <div style={{ marginBottom: '25px' }}>

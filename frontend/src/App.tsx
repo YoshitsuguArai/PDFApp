@@ -109,7 +109,7 @@ const App: React.FC = () => {
           }}>
             <img 
               src="/icon.png" 
-              alt="DocuMind Pro" 
+              alt="Retrieve" 
               style={{
                 width: '40px',
                 height: '40px',
@@ -124,7 +124,7 @@ const App: React.FC = () => {
                 fontWeight: '700',
                 color: '#ffffff'
               }}>
-                DocuMind Pro
+                Retrieve
               </h4>
               <p style={{
                 margin: '0',
@@ -132,7 +132,7 @@ const App: React.FC = () => {
                 color: '#9fb8d3',
                 fontWeight: '400'
               }}>
-                Enterprise Document Intelligence
+                AI-Powered Document Search & Analysis
               </p>
             </div>
           </div>
@@ -155,7 +155,7 @@ const App: React.FC = () => {
                 color: '#ffffff',
                 fontWeight: '600'
               }}>
-                AI Hybrid Search
+                Intelligent Retrieval
               </span>
             </div>
             <p style={{
@@ -182,7 +182,7 @@ const App: React.FC = () => {
               color: '#ffffff',
               marginBottom: '12px'
             }}>
-              v1.0.0 BETA
+              v1.1.0
             </div>
             <p style={{
               margin: '0',
@@ -194,7 +194,7 @@ const App: React.FC = () => {
               gap: '4px'
             }}>
               {/* @ts-ignore */}
-              © 2024 | Built with <FaHeart style={{ color: '#ff6b6b', fontSize: '12px' }} /> for enterprise
+              © 2025 | Built with <FaHeart style={{ color: '#ff6b6b', fontSize: '12px' }} /> for enterprise
             </p>
           </div>
         </div>

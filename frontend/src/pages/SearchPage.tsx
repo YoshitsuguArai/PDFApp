@@ -31,7 +31,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearchComplete }) => {
 
   const handleSearch = async (query: SearchQuery) => {
     if (documentCount === 0) {
-      setError('まずアップロードページでPDFファイルをアップロードしてください');
+      setError('まずドキュメント登録でPDFファイルを登録してください');
       return;
     }
 
@@ -75,7 +75,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearchComplete }) => {
         }}>
           {/* @ts-ignore */}
           <FiSearch style={{ fontSize: 'clamp(28px, 5vw, 36px)' }} />
-          ドキュメント検索
+          インテリジェント検索
         </h1>
         <p style={{ 
           fontSize: 'clamp(14px, 2.5vw, 16px)', 
@@ -84,7 +84,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearchComplete }) => {
           maxWidth: '600px',
           margin: '0 auto'
         }}>
-          登録されたPDFファイルからAI搭載ハイブリッド検索で高精度な情報検索を実現
+          AI駆動のハイブリッド検索で文書から必要な情報を素早く取得・分析
         </p>
       </div>
 
@@ -137,8 +137,8 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearchComplete }) => {
           opacity: 0.9
         }}>
           {documentCount > 0 
-            ? 'AI搭載ハイブリッド検索で高精度な情報検索が可能です' 
-            : 'まずアップロードページでPDFファイルをアップロードしてください'}
+            ? 'インテリジェント検索で必要な情報を素早く取得できます' 
+            : 'まずドキュメント登録から始めてください'}
         </p>
       </div>
 
