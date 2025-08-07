@@ -32,7 +32,10 @@ class SearchResult:
 
 class EmbeddingService:
     def __init__(self, cache_dir: Optional[str] = "./embedding_cache", use_auth_token: Optional[str] = None):
-        self.openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.openai_client = openai.OpenAI(
+            base_url="http://localhost:1234/v1",
+            api_key="not-needed"
+        )
         
         # Hugging Face tokenを環境変数から取得
         self.hf_token = use_auth_token or os.getenv("HUGGINGFACE_TOKEN") or os.getenv("HF_TOKEN")

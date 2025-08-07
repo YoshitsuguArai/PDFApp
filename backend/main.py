@@ -80,8 +80,11 @@ print(f"[INIT] Upload dir exists: {upload_dir.exists()}")
 pdf_processor = PDFProcessor(upload_dir=str(upload_dir))
 search_engine = HybridSearchEngine()
 
-# OpenAI クライアント
-openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# LM Studio クライアント（ローカルサーバー）
+openai_client = openai.OpenAI(
+    base_url="http://localhost:1234/v1",
+    api_key="not-needed"
+)
 
 class SearchQuery(BaseModel):
     query: str
@@ -436,62 +439,42 @@ def get_document_generation_prompt(document_type: str, query: str, search_result
     
     for result in search_results:
         source_files.append(result.source)
-        # 各ファイルの詳細チャンクを取得
+        # 各ファイルの詳細チャンクを取得（簡略化）
         file_chunks = search_engine.get_documents_by_source(result.source)
-        # 関連性の高いチャンクを抽出（スコアでソート）
+        # 関連性の高いチャンクを抽出（最大1チャンクまで）
         relevant_chunks = []
         for chunk in file_chunks:
             if any(page in result.pages for page in [chunk.get('page', 0)]):
                 relevant_chunks.append(chunk)
         
-        # 最大3チャンクまで
-        for chunk in relevant_chunks[:3]:
-            detailed_content.append(f"【{result.source} - ページ{chunk.get('page', '?')}】\n{chunk['content']}")
+        # 最大1チャンクまでに制限し、内容も短縮
+        for chunk in relevant_chunks[:1]:
+            content = chunk['content'][:500] + "..." if len(chunk['content']) > 500 else chunk['content']
+            detailed_content.append(f"【{result.source}】\n{content}")
     
-    # ドキュメントタイプ別のプロンプト
+    # ドキュメントタイプ別のプロンプト（簡略化）
     type_prompts = {
-        "summary": """以下の検索結果を基に、簡潔で分かりやすい要約レポートを作成してください。
-
-**要求事項:**
-- 主要なポイントを3-5個にまとめる
-- 各ポイントは具体的な根拠を含める
-- 読みやすい構造（見出し、箇条書きを活用）
-- 重要な数値やデータがあれば強調""",
-
-        "report": """以下の検索結果を基に、詳細な分析レポートを作成してください。
-
-**要求事項:**
-- 背景・現状分析
-- 主要な発見事項と考察
-- 課題と提言
-- 参考データの明示
-- 論理的な構成と客観的な分析""",
-
-        "presentation": """以下の検索結果を基に、プレゼンテーション用の資料を作成してください。
-
-**要求事項:**
-- スライド構成で作成（各セクションを明確に区分）
-- 要点を視覚的に分かりやすく整理
-- 聴衆が理解しやすい流れ
-- 重要なポイントは強調表示
-- 各スライドにタイトルを付ける"""
+        "summary": "以下の情報を基に簡潔な要約を作成してください。",
+        "report": "以下の情報を基に分析レポートを作成してください。",
+        "presentation": "以下の情報を基にプレゼン資料を作成してください。"
     }
     
     base_prompt = type_prompts.get(document_type, type_prompts["summary"])
     
     content_text = "\n\n".join(detailed_content)
     
+    # コンテンツをさらに短縮（最大2000文字まで）
+    if len(content_text) > 2000:
+        content_text = content_text[:2000] + "..."
+    
     prompt = f"""{base_prompt}
 
-**検索クエリ:** {query}
+クエリ: {query}
 
-**参考資料:**
+資料:
 {content_text}
 
-**カスタム指示:**
-{custom_prompt if custom_prompt else "特になし"}
-
-**出力形式:** プレーンテキスト形式で構造化してください。Markdown記法（#、*、**、-、```など）は使用禁止です。見出しは全て大文字で表記し、リストは「1.」「2.」や「・」で表現してください。PDFに直接変換されるためプレーンテキストのみ使用してください。"""
+プレーンテキストで簡潔に回答してください。"""
 
     return prompt
 
@@ -631,9 +614,9 @@ async def generate_document(request: GenerateDocumentRequest):
             request.custom_prompt
         )
         
-        # OpenAI APIで資料生成
+        # LM Studio APIで資料生成
         response = openai_client.chat.completions.create(
-            model="gpt-4o",
+            model="openai/gpt-oss-20b:2",
             messages=[
                 {
                     "role": "system",
@@ -644,7 +627,7 @@ async def generate_document(request: GenerateDocumentRequest):
                     "content": prompt
                 }
             ],
-            max_tokens=3000,
+            max_tokens=1000,
             temperature=0.3
         )
         
